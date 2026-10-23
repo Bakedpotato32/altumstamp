@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@keyframes floatBlobLight {
+  0% { transform: translate3d(0px, 0px, 0px) scale(1); }
+  33% { transform: translate3d(25px, -35px, 0px) scale(1.06); }
+  66% { transform: translate3d(-20px, 20px, 0px) scale(0.96); }
+  100% { transform: translate3d(0px, 0px, 0px) scale(1); }
+}
+
+.animate-light-blob-1 {
+  animation: floatBlobLight 14s infinite ease-in-out;
+}
+.animate-light-blob-2 {
+  animation: floatBlobLight 18s infinite ease-in-out -7s;
+}

@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="100%" height="100%">
+  <defs>
+    <!-- Background Neo-Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="35%" stop-color="#2563eb"/>
+      <stop offset="70%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+
+    <!-- Glassmorphic Overlay Gradient -->
+    <linearGradient id="glassGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.38"/>
+      <stop offset="45%" stop-color="#ffffff" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.04"/>
+    </linearGradient>
+
+    <!-- Holographic Cyan-Amber Shimmer -->
+    <linearGradient id="stampGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#fbbf24"/>
+    </linearGradient>
+
+    <!-- Drop Shadow Filters -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="24" stdDeviation="32" flood-color="#0f172a" flood-opacity="0.45"/>
+    </filter>
+    
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="16" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Base Squircle Container -->
+  <rect x="32" y="32" width="960" height="960" rx="240" fill="url(#bgGrad)" filter="url(#shadow)"/>
+
+  <!-- Frosted Acrylic Glass Plate -->
+  <rect x="72" y="72" width="880" height="880" rx="200" fill="url(#glassGrad)" stroke="#ffffff" stroke-opacity="0.35" stroke-width="4"/>
+
+  <!-- Upper Holographic Ambient Flare -->
+  <circle cx="280" cy="240" r="180" fill="#38bdf8" opacity="0.35" filter="url(#glow)"/>
+  <circle cx="740" cy="380" r="160" fill="#f43f5e" opacity="0.25" filter="url(#glow)"/>
+
+  <!-- Central Verification Stamp Seal Emblem -->
+  <g transform="translate(512, 420)">
+    <!-- Outer Rotated Decorative Octagon Ring -->
+    <rect x="-180" y="-180" width="360" height="360" rx="60" fill="none" stroke="url(#stampGlow)" stroke-width="12" stroke-dasharray="24 16" opacity="0.85"/>
+    <rect x="-180" y="-180" width="360" height="360" rx="60" fill="none" stroke="#ffffff" stroke-width="6" opacity="0.5" transform="rotate(45)"/>
+
+    <!-- Frosted Inner Circular Stamp Shield -->
+    <circle cx="0" cy="0" r="145" fill="#ffffff" fill-opacity="0.18" stroke="#ffffff" stroke-width="8" filter="url(#shadow)"/>
+    <circle cx="0" cy="0" r="125" fill="#0f172a" fill-opacity="0.25" stroke="#38bdf8" stroke-width="3" stroke-dasharray="10 8"/>
+
+    <!-- Dual Photo & Signature Iconic Symbol -->
+    <!-- Passport Card Silhouette -->
+    <rect x="-65" y="-75" width="130" height="100" rx="16" fill="#ffffff" fill-opacity="0.95" filter="url(#shadow)"/>
+    <circle cx="0" cy="-35" r="22" fill="#2563eb"/>
+    <path d="M -35 5 C -35 -15, 35 -15, 35 5 Z" fill="#2563eb"/>
+
+    <!-- Demarcation Line -->
+    <line x1="-55" y1="36" x2="55" y2="36" stroke="#0f172a" stroke-width="3"/>
+
+    <!-- Signature Stroke Graphic -->
+    <path d="M -45 52 Q -25 38 -10 50 T 20 48 T 45 54" fill="none" stroke="#0f172a" stroke-width="4.5" stroke-linecap="round"/>
+
+    <!-- Verified Golden Seal Checkmark Star -->
+    <circle cx="65" cy="-55" r="28" fill="#fbbf24" stroke="#ffffff" stroke-width="4" filter="url(#glow)"/>
+    <path d="M 54 -55 L 62 -47 L 76 -63" fill="none" stroke="#0f172a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- "UPMSP • GOVT EXAM COMPLIANT" Pill -->
+  <g transform="translate(512, 705)">
+    <rect x="-170" y="-22" width="340" height="44" rx="22" fill="#ffffff" fill-opacity="0.15" stroke="#ffffff" stroke-opacity="0.3" stroke-width="2"/>
+    <text x="0" y="7" font-family="-apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', sans-serif" font-size="16" font-weight="800" fill="#e0e7ff" letter-spacing="4" text-anchor="middle">UPMSP • GOVT EXAM</text>
+  </g>
+
+  <!-- App Typography: ALTUMSTAMP -->
+  <text x="512" y="820" font-family="-apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', sans-serif" font-size="82" font-weight="900" fill="#ffffff" letter-spacing="8" text-anchor="middle" filter="url(#shadow)">
+    ALTUM<tspan fill="#38bdf8">STAMP</tspan>
+  </text>
+
+  <!-- Tagline -->
+  <text x="512" y="870" font-family="-apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', sans-serif" font-size="22" font-weight="700" fill="#93c5fd" letter-spacing="10" text-anchor="middle" opacity="0.9">
+    STUDIO SUITE
+  </text>
+</svg>
