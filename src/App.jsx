@@ -28,6 +28,7 @@ import {
   compressToStrictKB 
 } from './utils/canvasEngine';
 import { saveToVault } from './utils/vaultStorage';
+import { exportFile } from './utils/fileSaver';
 import AmbientBackground from './components/AmbientBackground';
 import TopHeader from './components/TopHeader';
 import BottomDock from './components/BottomDock';
@@ -42,7 +43,6 @@ import VaultView from './views/VaultView';
 export default function App() {
   const [activeTab, setActiveTab] = useState('studio');
 
-  // Working images
   const [rawPhotoSrc, setRawPhotoSrc] = useState(null);
   const [croppedPhotoSrc, setCroppedPhotoSrc] = useState(null);
 
@@ -52,19 +52,15 @@ export default function App() {
 
   const [compositeUrl, setCompositeUrl] = useState(null);
 
-  // Active Exam Preset tracking
   const [activePresetId, setActivePresetId] = useState('up_board_combo');
   const [activePresetName, setActivePresetName] = useState('UP Board (10th/12th)');
 
-  // Modal dialog states
   const [cropperModal, setCropperModal] = useState({ isOpen: false, mode: 'photo', image: null });
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
-  // Exit App Toast state
   const [exitToast, setExitToast] = useState(false);
   const lastBackPressRef = useRef(0);
 
-  // Refs for native back button access
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
 
@@ -74,67 +70,56 @@ export default function App() {
   const isShareModalRef = useRef(isShareModalOpen);
   isShareModalRef.current = isShareModalOpen;
 
-  // Paper bleach settings
   const [enableBleach, setEnableBleach] = useState(false);
   const [inkThreshold, setInkThreshold] = useState(175);
   const [inkColor, setInkColor] = useState('black');
   const [showBleachDial, setShowBleachDial] = useState(false);
 
-  // Target Compression Limit
   const [targetKB, setTargetKB] = useState(45);
   const [activeKB, setActiveKB] = useState(0);
   const [isCompliant, setIsCompliant] = useState(true);
   const [format, setFormat] = useState('image/jpeg');
 
-  // Slip customizations
   const [photoRatio, setPhotoRatio] = useState(74);
   const [includeDivider, setIncludeDivider] = useState(true);
 
   const photoInputRef = useRef(null);
   const signInputRef = useRef(null);
 
-  // 1. Configure Native Status Bar (Dark text on light background)
   useEffect(() => {
     const setupStatusBar = async () => {
       try {
         await StatusBar.setStyle({ style: Style.Light });
         await StatusBar.setBackgroundColor({ color: '#f8fafc' });
-      } catch {
-        // Ignored when running in web browser
-      }
+      } catch {}
     };
     setupStatusBar();
   }, []);
 
-  // 2. Native Android Back Button & Swipe Gesture Listener
   useEffect(() => {
     let backHandler = null;
 
     const setupBackNavigation = async () => {
       try {
         backHandler = await CapApp.addListener('backButton', () => {
-          // Priority 1: Close active cropper modal
           if (cropperModalRef.current.isOpen) {
             triggerHaptic('light');
             setCropperModal({ isOpen: false, mode: 'photo', image: null });
             return;
           }
 
-          // Priority 2: Close wireless share modal
           if (isShareModalRef.current) {
             triggerHaptic('light');
             setIsShareModalOpen(false);
             return;
           }
 
-          // Priority 3: Return to main Studio if on another tab
           if (activeTabRef.current !== 'studio') {
             triggerHaptic('selection');
             setActiveTab('studio');
             return;
           }
 
-          // Priority 4: Double-tap back on Studio tab to exit
           const now = Date.now();
           if (now - lastBackPressRef.current < 2000) {
             CapApp.exitApp();
@@ -145,9 +130,7 @@ export default function App() {
             setTimeout(() => setExitToast(false), 2000);
           }
         });
-      } catch {
-        // Ignored in browser
-      }
+      } catch {}
     };
 
     setupBackNavigation();
@@ -159,7 +142,6 @@ export default function App() {
     };
   }, []);
 
-  // Process Signature Paper Bleach safely
   useEffect(() => {
     const source = croppedSignSrc || rawSignSrc;
     if (!source) {
@@ -177,7 +159,6 @@ export default function App() {
       .catch(() => setBleachedSignSrc(source));
   }, [croppedSignSrc, rawSignSrc, inkThreshold, inkColor, enableBleach]);
 
-  // Render & compress live slip
   useEffect(() => {
     let cancelled = false;
 
@@ -223,7 +204,6 @@ export default function App() {
     format
   ]);
 
-  // Safe file uploads with automatic value resets
   const handlePhotoUpload = (e) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -276,7 +256,7 @@ export default function App() {
     setActiveTab('studio');
   };
 
-  // Download & Auto-Save to Offline Vault
+  // Download & Auto-Save with Native Exporter
   const handleDownload = async () => {
     if (!compositeUrl) return;
     triggerHaptic('success');
@@ -284,13 +264,13 @@ export default function App() {
 
     const ext = format === 'image/png' ? 'png' : format === 'image/webp' ? 'webp' : 'jpg';
     const filename = `Candidate_UPBoard_${activeKB}KB.${ext}`;
-    
-    const a = document.createElement('a');
-    a.href = compositeUrl;
-    a.download = filename;
-    a.click();
 
-    // Auto-save to IndexedDB Vault
+    await exportFile({
+      dataUrl: compositeUrl,
+      fileName: filename,
+      mimeType: format
+    });
+
     await saveToVault({
       name: 'Candidate Slip',
       examTag: activePresetName,
@@ -318,23 +298,23 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen text-slate-900 flex flex-col pb-28">
-      {/* Light Ambient Pastel Glow */}
       <AmbientBackground />
 
-      {/* Main Container with Notch & Status Bar Safe Padding */}
-      <main 
-        className="flex-1 w-full max-w-md mx-auto px-4 space-y-4"
+      <header
+        className="sticky top-0 z-40 w-full bg-[#f8fafc]/85 backdrop-blur-2xl border-b border-slate-200/60 shadow-[0_4px_20px_rgba(15,23,42,0.03)]"
         style={{
           paddingTop: 'max(env(safe-area-inset-top, 0px), 44px)'
         }}
       >
-        {/* Top Header */}
-        <TopHeader
-          onQuickMerge={() => photoInputRef.current?.click()}
-          onOpenVault={() => setActiveTab('vault')}
-        />
+        <div className="max-w-md mx-auto px-4 py-2.5">
+          <TopHeader
+            onQuickMerge={() => photoInputRef.current?.click()}
+            onOpenVault={() => setActiveTab('vault')}
+          />
+        </div>
+      </header>
 
-        {/* Hidden File Inputs */}
+      <main className="flex-1 w-full max-w-md mx-auto px-4 pt-3 space-y-4">
         <input 
           type="file" 
           ref={photoInputRef} 
@@ -352,13 +332,8 @@ export default function App() {
           className="hidden" 
         />
 
-        {/* ==============================================================
-            TAB 1: MERGER STUDIO
-           ============================================================== */}
         {activeTab === 'studio' && (
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-            
-            {/* Hero Card */}
             <motion.div
               whileTap={{ scale: 0.98 }}
               className="rounded-[28px] p-6 bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 text-white shadow-xl shadow-indigo-600/25 relative overflow-hidden"
@@ -413,10 +388,7 @@ export default function App() {
               </div>
             </motion.div>
 
-            {/* Dual Stations */}
             <div className="grid grid-cols-2 gap-3.5">
-              
-              {/* CARD 1: Student Photo Card */}
               <div className="rounded-[28px] p-4 bg-gradient-to-b from-sky-400 via-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25 flex flex-col justify-between min-h-[195px] relative overflow-hidden">
                 <div className="flex items-start justify-between z-10">
                   <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-white/20 text-white">
@@ -487,7 +459,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* CARD 2: Student Signature Card */}
               <div className="rounded-[28px] p-4 bg-gradient-to-b from-rose-500 via-red-500 to-orange-500 text-white shadow-lg shadow-rose-500/25 flex flex-col justify-between min-h-[195px] relative overflow-hidden">
                 <div className="flex items-start justify-between z-10">
                   <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-white/20 text-white">
@@ -579,7 +550,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* In-line Signature Paper Bleach Adjuster */}
             <AnimatePresence>
               {showBleachDial && activeSign && (
                 <motion.div
@@ -644,7 +614,6 @@ export default function App() {
               )}
             </AnimatePresence>
 
-            {/* High-Clarity Precision Compression Slider */}
             <div className="rounded-[28px] p-5 bg-white/80 backdrop-blur-xl border border-white/90 shadow-lg space-y-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -663,7 +632,7 @@ export default function App() {
               <div className="pt-1">
                 <input
                   type="range"
-                  min="15"
+                  min="8"
                   max="100"
                   step="1"
                   value={targetKB}
@@ -676,6 +645,7 @@ export default function App() {
                   className="w-full accent-blue-600 h-2.5 bg-slate-200 rounded-lg cursor-pointer"
                 />
                 <div className="flex justify-between text-[10px] font-extrabold text-slate-400 mt-1.5 px-0.5">
+                  <span onClick={() => setTargetKB(10)} className={`cursor-pointer ${targetKB === 10 ? 'text-blue-600 font-black' : ''}`}>10 KB</span>
                   <span onClick={() => setTargetKB(20)} className={`cursor-pointer ${targetKB === 20 ? 'text-blue-600 font-black' : ''}`}>20 KB</span>
                   <span onClick={() => setTargetKB(35)} className={`cursor-pointer ${targetKB === 35 ? 'text-blue-600 font-black' : ''}`}>35 KB</span>
                   <span onClick={() => setTargetKB(50)} className={`cursor-pointer ${targetKB === 50 ? 'text-blue-600 font-black' : ''}`}>50 KB</span>
@@ -684,7 +654,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Seamless Output Canvas Frame */}
             <div className="rounded-[28px] p-5 bg-white/80 backdrop-blur-xl border border-white/90 shadow-xl shadow-slate-200/50">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -717,7 +686,6 @@ export default function App() {
                 )}
               </div>
 
-              {/* Action Buttons */}
               <div className="grid grid-cols-2 gap-2 mt-3.5">
                 <motion.button
                   whileTap={{ scale: 0.96 }}
@@ -751,7 +719,6 @@ export default function App() {
           </motion.div>
         )}
 
-        {/* TAB 2: INK LAB */}
         {activeTab === 'ink' && (
           <InkLabView
             onApplyToStudio={(cleanedDataUrl) => {
@@ -762,12 +729,10 @@ export default function App() {
           />
         )}
 
-        {/* TAB 3: STANDALONE COMPRESSOR */}
         {activeTab === 'compress' && (
           <CompressView />
         )}
 
-        {/* TAB 4: OFFICIAL EXAM PRESETS */}
         {activeTab === 'presets' && (
           <PresetsView 
             activePresetId={activePresetId}
@@ -775,7 +740,6 @@ export default function App() {
           />
         )}
 
-        {/* TAB 5: PRINT SHEET REVENUE CENTER */}
         {activeTab === 'print' && (
           <PrintSheetView 
             compositeUrl={compositeUrl}
@@ -784,7 +748,6 @@ export default function App() {
           />
         )}
 
-        {/* TAB 6: OFFLINE VAULT & ROSTER */}
         {activeTab === 'vault' && (
           <VaultView 
             onReopenInStudio={handleReopenInStudio}
@@ -793,7 +756,6 @@ export default function App() {
         )}
       </main>
 
-      {/* Floating Exit App Confirmation Toast */}
       <AnimatePresence>
         {exitToast && (
           <motion.div
@@ -809,7 +771,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Live Gesture Cropper Modal */}
       <InteractiveCropperModal
         isOpen={cropperModal.isOpen}
         onClose={() => setCropperModal({ isOpen: false, mode: 'photo', image: null })}
@@ -824,7 +785,6 @@ export default function App() {
         }}
       />
 
-      {/* Wireless Share Modal */}
       <WirelessShareModal
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
@@ -833,7 +793,6 @@ export default function App() {
         sizeKB={activeKB}
       />
 
-      {/* Floating Translucent Glass Dock */}
       <BottomDock activeTab={activeTab} setActiveTab={setActiveTab} />
     </div>
   );

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { triggerHaptic } from '../utils/haptics';
 import { processSignatureInk, compressToStrictKB } from '../utils/canvasEngine';
+import { exportFile } from '../utils/fileSaver';
 import TouchSignaturePad from '../components/TouchSignaturePad';
 
 export default function InkLabView({ onApplyToStudio }) {
@@ -61,13 +62,14 @@ export default function InkLabView({ onApplyToStudio }) {
     e.target.value = '';
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!processedImg) return;
     triggerHaptic('success');
-    const a = document.createElement('a');
-    a.href = processedImg;
-    a.download = `Cleaned_Signature_${activeKB}KB.jpg`;
-    a.click();
+    await exportFile({
+      dataUrl: processedImg,
+      fileName: `Cleaned_Signature_${activeKB}KB.jpg`,
+      mimeType: 'image/jpeg'
+    });
   };
 
   const handleTransferToStudio = () => {

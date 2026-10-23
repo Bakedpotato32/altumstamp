@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   Archive, 
   Search, 
@@ -9,13 +9,11 @@ import {
   Share2, 
   Layers, 
   Calendar, 
-  HardDrive, 
-  ShieldCheck, 
-  FileCheck,
-  CheckCircle2
+  HardDrive
 } from 'lucide-react';
 import { triggerHaptic } from '../utils/haptics';
 import { getAllVaultItems, deleteVaultItem } from '../utils/vaultStorage';
+import { exportFile } from '../utils/fileSaver';
 import WirelessShareModal from '../components/WirelessShareModal';
 
 export default function VaultView({ onReopenInStudio, onTileToPrint }) {
@@ -38,12 +36,13 @@ export default function VaultView({ onReopenInStudio, onTileToPrint }) {
     setVaultItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const handleDownload = (item) => {
+  const handleDownload = async (item) => {
     triggerHaptic('success');
-    const a = document.createElement('a');
-    a.href = item.compositeUrl;
-    a.download = `${(item.name || 'Candidate').replace(/\s+/g, '_')}_${item.sizeKB}KB.jpg`;
-    a.click();
+    await exportFile({
+      dataUrl: item.compositeUrl,
+      fileName: `${(item.name || 'Candidate').replace(/\s+/g, '_')}_${item.sizeKB}KB.jpg`,
+      mimeType: 'image/jpeg'
+    });
   };
 
   const filteredItems = vaultItems.filter((item) => {
@@ -56,8 +55,6 @@ export default function VaultView({ onReopenInStudio, onTileToPrint }) {
 
   return (
     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 pb-12">
-      
-      {/* Hero Header */}
       <div className="rounded-[28px] p-5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-xl shadow-slate-950/20">
         <div className="flex items-center justify-between">
           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-white/15 uppercase tracking-wider flex items-center gap-1">
@@ -74,7 +71,6 @@ export default function VaultView({ onReopenInStudio, onTileToPrint }) {
         </p>
       </div>
 
-      {/* Search Input Bar */}
       <div className="relative">
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         <input
@@ -86,14 +82,12 @@ export default function VaultView({ onReopenInStudio, onTileToPrint }) {
         />
       </div>
 
-      {/* Roster List */}
       <div className="space-y-3">
         {filteredItems.map((item) => (
           <div
             key={item.id}
             className="rounded-[24px] p-4 bg-white/90 backdrop-blur-xl border border-white/90 shadow-sm hover:border-slate-200 transition-all flex flex-col space-y-3"
           >
-            {/* Top Snapshot Row */}
             <div className="flex items-start gap-3">
               <div className="w-14 h-18 rounded-xl bg-slate-50 border border-slate-200 p-1 flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
                 <img src={item.compositeUrl} alt={item.name} className="w-full h-full object-contain" />
@@ -119,7 +113,6 @@ export default function VaultView({ onReopenInStudio, onTileToPrint }) {
                 </p>
               </div>
 
-              {/* Delete Button */}
               <button
                 type="button"
                 onClick={() => handleDelete(item.id)}
@@ -130,7 +123,6 @@ export default function VaultView({ onReopenInStudio, onTileToPrint }) {
               </button>
             </div>
 
-            {/* Quick Action Station */}
             <div className="grid grid-cols-4 gap-1.5 pt-1 border-t border-slate-100">
               <button
                 type="button"
@@ -191,7 +183,6 @@ export default function VaultView({ onReopenInStudio, onTileToPrint }) {
         )}
       </div>
 
-      {/* Wireless Share Modal */}
       <WirelessShareModal
         isOpen={shareTarget !== null}
         onClose={() => setShareTarget(null)}

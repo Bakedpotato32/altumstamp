@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { triggerHaptic } from '../utils/haptics';
+import { exportFile } from '../utils/fileSaver';
 
 export default function PrintSheetView({ compositeUrl, photoUrl, signUrl }) {
   const [sourceType, setSourceType] = useState(compositeUrl ? 'composite' : photoUrl ? 'photo' : 'custom');
@@ -141,14 +142,19 @@ export default function PrintSheetView({ compositeUrl, photoUrl, signUrl }) {
     return pdf;
   };
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     if (!activeImage) return;
     triggerHaptic('success');
     confetti({ particleCount: 50, spread: 60, origin: { y: 0.85 } });
 
     const pdf = generatePdf();
     if (pdf) {
-      pdf.save(`${paperSize.toUpperCase()}_${gridCount}x_Passport_Sheet.pdf`);
+      const pdfDataUri = pdf.output('datauristring');
+      await exportFile({
+        dataUrl: pdfDataUri,
+        fileName: `${paperSize.toUpperCase()}_${gridCount}x_Passport_Sheet.pdf`,
+        mimeType: 'application/pdf'
+      });
     }
   };
 
@@ -208,10 +214,12 @@ export default function PrintSheetView({ compositeUrl, photoUrl, signUrl }) {
       ctx.fillText(`${cafeName.toUpperCase()} • ${cafeContact}`, canvas.width / 2, canvas.height - 25);
     }
 
-    const a = document.createElement('a');
-    a.href = canvas.toDataURL('image/jpeg', 0.95);
-    a.download = `${paperSize.toUpperCase()}_${gridCount}x_300DPI_Print_Sheet.jpg`;
-    a.click();
+    const jpgData = canvas.toDataURL('image/jpeg', 0.95);
+    await exportFile({
+      dataUrl: jpgData,
+      fileName: `${paperSize.toUpperCase()}_${gridCount}x_300DPI_Print_Sheet.jpg`,
+      mimeType: 'image/jpeg'
+    });
   };
 
   return (
@@ -225,7 +233,6 @@ export default function PrintSheetView({ compositeUrl, photoUrl, signUrl }) {
         className="hidden" 
       />
 
-      {/* Hero Header */}
       <div className="rounded-[28px] p-5 bg-gradient-to-r from-teal-500 via-emerald-600 to-cyan-700 text-white shadow-xl shadow-emerald-600/25">
         <div className="flex items-center justify-between">
           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-white/20 uppercase tracking-wider">
@@ -235,11 +242,10 @@ export default function PrintSheetView({ compositeUrl, photoUrl, signUrl }) {
         </div>
         <h2 className="text-2xl font-black mt-2">A4 & 4×6" Print Tiler</h2>
         <p className="text-xs text-emerald-100 font-medium mt-0.5">
-          Generate 6, 8, 16, or 32 identical copies on glossy photo paper with precision cutting lines[span_7](start_span)[span_7](end_span).
+          Generate 6, 8, 16, or 32 identical copies on glossy photo paper with precision cutting lines.
         </p>
       </div>
 
-      {/* Source Selector */}
       <div className="space-y-1.5">
         <label className="text-xs font-bold text-slate-700 px-1">Select Print Image Source</label>
         <div className="grid grid-cols-3 gap-2">
@@ -294,10 +300,7 @@ export default function PrintSheetView({ compositeUrl, photoUrl, signUrl }) {
         </div>
       </div>
 
-      {/* Paper & Grid Configuration Card */}
       <div className="rounded-[28px] p-5 bg-white/80 backdrop-blur-xl border border-white/90 shadow-xl space-y-4">
-        
-        {/* Paper Size */}
         <div>
           <label className="text-xs font-bold text-slate-700 mb-1.5 block">Photo Paper Dimension</label>
           <div className="grid grid-cols-2 gap-2">
@@ -329,7 +332,6 @@ export default function PrintSheetView({ compositeUrl, photoUrl, signUrl }) {
           </div>
         </div>
 
-        {/* Copy Quantity Presets */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-xs font-bold text-slate-700">Photo Grid Density</label>
@@ -417,7 +419,6 @@ export default function PrintSheetView({ compositeUrl, photoUrl, signUrl }) {
           </div>
         </div>
 
-        {/* Live Proportional Scaled Paper Preview (Zero Leakage) */}
         <div className="pt-2">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
@@ -438,7 +439,6 @@ export default function PrintSheetView({ compositeUrl, photoUrl, signUrl }) {
                     : 'w-full max-w-[220px] aspect-[210/297]'
                 }`}
               >
-                {/* Strict Bounded Matrix */}
                 <div 
                   className={`grid gap-1.5 w-full h-full min-h-0 flex-1 ${
                     paperSize === '4x6' 
@@ -473,7 +473,6 @@ export default function PrintSheetView({ compositeUrl, photoUrl, signUrl }) {
           </div>
         </div>
 
-        {/* Footer & Cutting Toggles */}
         <div className="space-y-3 pt-2 border-t border-slate-100">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -527,7 +526,6 @@ export default function PrintSheetView({ compositeUrl, photoUrl, signUrl }) {
           )}
         </div>
 
-        {/* Action Buttons */}
         <div className="grid grid-cols-2 gap-2 pt-2">
           <button
             type="button"

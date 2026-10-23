@@ -1,24 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { 
   Upload, 
   Download, 
   Share2, 
-  Sparkles, 
   FileText, 
-  Image as ImageIcon, 
-  Sliders, 
-  CheckCircle2, 
-  AlertTriangle,
   RefreshCw,
-  Trash2,
-  HardDrive,
-  Maximize2
+  Trash2
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { triggerHaptic } from '../utils/haptics';
 import { compressToStrictKB } from '../utils/canvasEngine';
+import { exportFile } from '../utils/fileSaver';
 
 export default function CompressView() {
   const [sourceImage, setSourceImage] = useState(null);
@@ -26,15 +20,13 @@ export default function CompressView() {
   const [compressedUrl, setCompressedUrl] = useState(null);
   const [activeKB, setActiveKB] = useState(0);
 
-  // Compression Controls
   const [targetKB, setTargetKB] = useState(100);
-  const [format, setFormat] = useState('image/jpeg'); // 'image/jpeg', 'image/webp', 'image/png', 'application/pdf'
-  const [maxDimension, setMaxDimension] = useState('original'); // 'original', 1200, 800, 600
+  const [format, setFormat] = useState('image/jpeg');
+  const [maxDimension, setMaxDimension] = useState('original');
   const [isProcessing, setIsProcessing] = useState(false);
 
   const fileInputRef = useRef(null);
 
-  // Live Compression Engine
   const runCompression = async (imgSrc, target, fmt, maxDim) => {
     if (!imgSrc) return;
     setIsProcessing(true);
@@ -46,7 +38,6 @@ export default function CompressView() {
       let targetW = img.naturalWidth || img.width;
       let targetH = img.naturalHeight || img.height;
 
-      // Apply max dimension constraint if selected
       if (maxDim !== 'original') {
         const maxVal = Number(maxDim);
         if (targetW > maxVal || targetH > maxVal) {
@@ -71,8 +62,7 @@ export default function CompressView() {
       ctx.drawImage(img, 0, 0, targetW, targetH);
 
       if (fmt === 'application/pdf') {
-        // PDF mode: compress image to JPEG first, then calculate PDF size
-        const jpegResult = compressToStrictKB(canvas, Math.max(10, target - 8), 'image/jpeg');
+        const jpegResult = compressToStrictKB(canvas, Math.max(8, target - 6), 'image/jpeg');
         const pdf = new jsPDF({
           orientation: targetW > targetH ? 'landscape' : 'portrait',
           unit: 'mm',
@@ -130,37 +120,28 @@ export default function CompressView() {
     e.target.value = '';
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!compressedUrl) return;
     triggerHaptic('success');
     confetti({ particleCount: 50, spread: 60, origin: { y: 0.85 } });
 
-    const a = document.createElement('a');
-    a.href = compressedUrl;
     const ext = format === 'application/pdf' ? 'pdf' : format.replace('image/', '');
-    a.download = `Document_${activeKB}KB.${ext}`;
-    a.click();
+    await exportFile({
+      dataUrl: compressedUrl,
+      fileName: `Document_${activeKB}KB.${ext}`,
+      mimeType: format
+    });
   };
 
   const handleShare = async () => {
     if (!compressedUrl) return;
     triggerHaptic('light');
-    if (navigator.share) {
-      try {
-        const blob = await (await fetch(compressedUrl)).blob();
-        const ext = format === 'application/pdf' ? 'pdf' : format.replace('image/', '');
-        const file = new File([blob], `Document_${activeKB}KB.${ext}`, { type: format });
-        await navigator.share({
-          files: [file],
-          title: 'Compressed Document',
-          text: `Compressed via AltumStamp (${activeKB} KB)`
-        });
-      } catch {
-        // Dismissed
-      }
-    } else {
-      handleDownload();
-    }
+    const ext = format === 'application/pdf' ? 'pdf' : format.replace('image/', '');
+    await exportFile({
+      dataUrl: compressedUrl,
+      fileName: `Document_${activeKB}KB.${ext}`,
+      mimeType: format
+    });
   };
 
   const reductionPercent = originalKB > 0 && activeKB > 0 
@@ -178,7 +159,6 @@ export default function CompressView() {
         className="hidden" 
       />
 
-      {/* Hero Header */}
       <div className="rounded-[28px] p-5 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 text-white shadow-xl shadow-amber-500/25">
         <div className="flex items-center justify-between">
           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-white/20 uppercase tracking-wider">
@@ -192,7 +172,6 @@ export default function CompressView() {
         </p>
       </div>
 
-      {/* Upload Zone */}
       {!sourceImage ? (
         <div
           onClick={() => fileInputRef.current?.click()}
@@ -207,10 +186,7 @@ export default function CompressView() {
           </p>
         </div>
       ) : (
-        /* Workspace Card */
         <div className="rounded-[28px] p-5 bg-white/80 backdrop-blur-xl border border-white/90 shadow-xl space-y-4">
-          
-          {/* Metrics Header */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div>
               <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">REDUCTION</p>
@@ -247,7 +223,6 @@ export default function CompressView() {
             </div>
           </div>
 
-          {/* Preview Canvas Display */}
           <div className="relative w-full h-56 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center p-3 overflow-hidden shadow-inner">
             {isProcessing && (
               <div className="absolute inset-0 bg-white/70 backdrop-blur-xs flex flex-col items-center justify-center z-10">
@@ -270,7 +245,6 @@ export default function CompressView() {
             )}
           </div>
 
-          {/* Quick Target KB Chips */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-700">Official Portal Target Caps</span>
@@ -297,13 +271,12 @@ export default function CompressView() {
             </div>
           </div>
 
-          {/* Continuous Target Slider */}
           <div>
             <input
               type="range"
-              min="10"
+              min="8"
               max="400"
-              step="5"
+              step="2"
               value={targetKB}
               onChange={(e) => {
                 triggerHaptic('light');
@@ -312,14 +285,13 @@ export default function CompressView() {
               className="w-full accent-amber-500 h-2 bg-slate-200 rounded-lg cursor-pointer"
             />
             <div className="flex justify-between text-[10px] font-bold text-slate-400 mt-1">
-              <span>10 KB</span>
+              <span>8 KB</span>
               <span>100 KB</span>
               <span>200 KB</span>
               <span>400 KB</span>
             </div>
           </div>
 
-          {/* Format Selector: JPG, WebP, PNG, PDF */}
           <div className="space-y-1.5 pt-1">
             <label className="text-xs font-bold text-slate-700">Export Format</label>
             <div className="grid grid-cols-4 gap-2">
@@ -348,7 +320,6 @@ export default function CompressView() {
             </div>
           </div>
 
-          {/* Dimension Constraint Presets */}
           <div className="space-y-1.5 pt-1">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-700">Max Dimension Constraint</label>
@@ -380,7 +351,6 @@ export default function CompressView() {
             </div>
           </div>
 
-          {/* Action Download & Share Buttons */}
           <div className="grid grid-cols-2 gap-2 pt-2">
             <button
               type="button"
