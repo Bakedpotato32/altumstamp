@@ -13,10 +13,10 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 20
+      - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Set up Java JDK 17
@@ -40,12 +40,13 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y librsvg2-bin
           
-          # Remove default template adaptive XMLs so Android displays the custom full-bleed logo
+          # Remove default adaptive XMLs so Android displays the custom full-bleed vector icon
           rm -rf android/app/src/main/res/mipmap-anydpi-v26
           
           MIPMAP="android/app/src/main/res"
+          mkdir -p $MIPMAP/mipmap-mdpi $MIPMAP/mipmap-hdpi $MIPMAP/mipmap-xhdpi $MIPMAP/mipmap-xxhdpi $MIPMAP/mipmap-xxxhdpi
           
-          # Convert logo.svg to all standard Android mipmap densities
+          # Convert logo.svg across standard launcher densities
           rsvg-convert -w 48 -h 48 public/logo.svg -o $MIPMAP/mipmap-mdpi/ic_launcher.png
           rsvg-convert -w 48 -h 48 public/logo.svg -o $MIPMAP/mipmap-mdpi/ic_launcher_round.png
           
