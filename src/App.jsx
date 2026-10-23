@@ -19,6 +19,8 @@ import {
   Printer,
   Archive
 } from 'lucide-react';
+import { App as CapApp } from '@capacitor/app';
+import { StatusBar, Style } from '@capacitor/status-bar';
 import { triggerHaptic } from './utils/haptics';
 import { 
   renderCompositeSlip, 
@@ -58,6 +60,20 @@ export default function App() {
   const [cropperModal, setCropperModal] = useState({ isOpen: false, mode: 'photo', image: null });
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
+  // Exit App Toast state
+  const [exitToast, setExitToast] = useState(false);
+  const lastBackPressRef = useRef(0);
+
+  // Refs for native back button access
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+
+  const cropperModalRef = useRef(cropperModal);
+  cropperModalRef.current = cropperModal;
+
+  const isShareModalRef = useRef(isShareModalOpen);
+  isShareModalRef.current = isShareModalOpen;
+
   // Paper bleach settings
   const [enableBleach, setEnableBleach] = useState(false);
   const [inkThreshold, setInkThreshold] = useState(175);
@@ -76,6 +92,72 @@ export default function App() {
 
   const photoInputRef = useRef(null);
   const signInputRef = useRef(null);
+
+  // 1. Configure Native Status Bar (Dark text on light background)
+  useEffect(() => {
+    const setupStatusBar = async () => {
+      try {
+        await StatusBar.setStyle({ style: Style.Light });
+        await StatusBar.setBackgroundColor({ color: '#f8fafc' });
+      } catch {
+        // Ignored when running in web browser
+      }
+    };
+    setupStatusBar();
+  }, []);
+
+  // 2. Native Android Back Button & Swipe Gesture Listener
+  useEffect(() => {
+    let backHandler = null;
+
+    const setupBackNavigation = async () => {
+      try {
+        backHandler = await CapApp.addListener('backButton', () => {
+          // Priority 1: Close active cropper modal
+          if (cropperModalRef.current.isOpen) {
+            triggerHaptic('light');
+            setCropperModal({ isOpen: false, mode: 'photo', image: null });
+            return;
+          }
+
+          // Priority 2: Close wireless share modal
+          if (isShareModalRef.current) {
+            triggerHaptic('light');
+            setIsShareModalOpen(false);
+            return;
+          }
+
+          // Priority 3: Return to main Studio if on another tab
+          if (activeTabRef.current !== 'studio') {
+            triggerHaptic('selection');
+            setActiveTab('studio');
+            return;
+          }
+
+          // Priority 4: Double-tap back on Studio tab to exit
+          const now = Date.now();
+          if (now - lastBackPressRef.current < 2000) {
+            CapApp.exitApp();
+          } else {
+            lastBackPressRef.current = now;
+            triggerHaptic('warning');
+            setExitToast(true);
+            setTimeout(() => setExitToast(false), 2000);
+          }
+        });
+      } catch {
+        // Ignored in browser
+      }
+    };
+
+    setupBackNavigation();
+
+    return () => {
+      if (backHandler && backHandler.remove) {
+        backHandler.remove();
+      }
+    };
+  }, []);
 
   // Process Signature Paper Bleach safely
   useEffect(() => {
@@ -219,7 +301,6 @@ export default function App() {
     });
   };
 
-  // Re-open slip from Vault back into Merger Studio
   const handleReopenInStudio = (vaultItem) => {
     if (vaultItem.photoUrl) setCroppedPhotoSrc(vaultItem.photoUrl);
     if (vaultItem.signUrl) setCroppedSignSrc(vaultItem.signUrl);
@@ -227,7 +308,6 @@ export default function App() {
     setActiveTab('studio');
   };
 
-  // Tile directly from Vault to Print Sheet
   const handleTileFromVault = (vaultItem) => {
     if (vaultItem.compositeUrl) setCompositeUrl(vaultItem.compositeUrl);
     setActiveTab('print');
@@ -241,7 +321,13 @@ export default function App() {
       {/* Light Ambient Pastel Glow */}
       <AmbientBackground />
 
-      <main className="flex-1 w-full max-w-md mx-auto px-4 pt-1 space-y-4">
+      {/* Main Container with Notch & Status Bar Safe Padding */}
+      <main 
+        className="flex-1 w-full max-w-md mx-auto px-4 space-y-4"
+        style={{
+          paddingTop: 'max(env(safe-area-inset-top, 0px), 44px)'
+        }}
+      >
         {/* Top Header */}
         <TopHeader
           onQuickMerge={() => photoInputRef.current?.click()}
@@ -347,7 +433,6 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Center Content */}
                 <div className="my-1.5 flex flex-col items-center justify-center z-10">
                   {activePhoto ? (
                     <div className="w-16 h-20 rounded-xl overflow-hidden border-2 border-white/80 shadow-md bg-white">
@@ -363,7 +448,6 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Actions */}
                 <div className="z-10">
                   {activePhoto ? (
                     <div className="flex items-center gap-1.5">
@@ -420,7 +504,6 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Center Content */}
                 <div className="my-1.5 flex flex-col items-center justify-center z-10">
                   {activeSign ? (
                     <div className="w-24 h-12 rounded-xl overflow-hidden border-2 border-white/80 shadow-md bg-white p-1 flex items-center justify-center">
@@ -436,7 +519,6 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Actions */}
                 <div className="z-10">
                   {activeSign ? (
                     <div className="flex items-center gap-1.5">
@@ -562,7 +644,7 @@ export default function App() {
               )}
             </AnimatePresence>
 
-            {/* Precision Compression Slider */}
+            {/* High-Clarity Precision Compression Slider */}
             <div className="rounded-[28px] p-5 bg-white/80 backdrop-blur-xl border border-white/90 shadow-lg space-y-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -702,7 +784,7 @@ export default function App() {
           />
         )}
 
-        {/* TAB 6: OFFLINE VAULT & ROSTER (BATCH 5) */}
+        {/* TAB 6: OFFLINE VAULT & ROSTER */}
         {activeTab === 'vault' && (
           <VaultView 
             onReopenInStudio={handleReopenInStudio}
@@ -710,6 +792,22 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* Floating Exit App Confirmation Toast */}
+      <AnimatePresence>
+        {exitToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-24 inset-x-0 z-[9999] flex justify-center pointer-events-none px-4"
+          >
+            <div className="px-4 py-2 rounded-full bg-slate-900/90 text-white text-xs font-bold shadow-xl backdrop-blur-md border border-white/20">
+              Press back again to exit
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Live Gesture Cropper Modal */}
       <InteractiveCropperModal
