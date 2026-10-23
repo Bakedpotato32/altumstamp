@@ -1,0 +1,9 @@
+{
+  "appId": "com.altum.stamp",
+  "appName": "AltumStamp",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}

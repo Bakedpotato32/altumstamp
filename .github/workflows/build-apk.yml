@@ -26,21 +26,25 @@ jobs:
           java-version: '17'
 
       - name: Install Dependencies
-        run: npm install
+        run: |
+          npm install
+          npm install @capacitor/android
 
       - name: Build Web Production Assets
         run: npm run build
 
       - name: Add Android Platform
         run: |
-          npx cap add android
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
           npx cap sync android
 
       - name: Generate Custom App Launcher Icons from SVG
         run: |
           sudo apt-get update && sudo apt-get install -y librsvg2-bin
           
-          # Remove default adaptive XMLs so Android displays the custom full-bleed vector icon
+          # Remove default adaptive XMLs so Android displays the custom vector icon
           rm -rf android/app/src/main/res/mipmap-anydpi-v26
           
           MIPMAP="android/app/src/main/res"
