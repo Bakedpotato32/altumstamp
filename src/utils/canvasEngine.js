@@ -224,114 +224,126 @@ export const renderCompositeSlip = async ({
   return canvas;
 };
 
-// Adaptive Precision Strict Compressor (Guarantees <= targetKB at highest possible clarity)
+// Precise Adaptive Strict Compressor (Guarantees <= targetKB at highest possible quality)
 export const compressToStrictKB = (canvas, targetKB, format = 'image/jpeg') => {
-  const targetBytes = targetKB * 1024;
+  const targetBytes = Math.max(3072, Math.floor(targetKB * 1024));
 
+  const getBytes = (dataUrl) => {
+    const idx = dataUrl.indexOf(',');
+    const base64 = idx >= 0 ? dataUrl.slice(idx + 1) : dataUrl;
+    let padding = 0;
+    if (base64.endsWith('==')) padding = 2;
+    else if (base64.endsWith('=')) padding = 1;
+    return Math.floor((base64.length * 3) / 4) - padding;
+  };
+
+  // PNG Mode
   if (format === 'image/png') {
-    let currentCanvas = canvas;
-    let dataUrl = currentCanvas.toDataURL('image/png');
-    let bytes = Math.round((dataUrl.length * 3) / 4);
-    let scale = 0.92;
+    let scale = 1.0;
+    let bestUrl = canvas.toDataURL('image/png');
+    let bestBytes = getBytes(bestUrl);
 
-    while (bytes > targetBytes && scale >= 0.2) {
-      const sCanvas = document.createElement('canvas');
-      sCanvas.width = Math.max(100, Math.round(canvas.width * scale));
-      sCanvas.height = Math.max(120, Math.round(canvas.height * scale));
-      const sCtx = sCanvas.getContext('2d');
-      sCtx.imageSmoothingEnabled = true;
-      sCtx.imageSmoothingQuality = 'high';
-      sCtx.drawImage(canvas, 0, 0, sCanvas.width, sCanvas.height);
-      dataUrl = sCanvas.toDataURL('image/png');
-      bytes = Math.round((dataUrl.length * 3) / 4);
+    while (bestBytes > targetBytes && scale >= 0.18) {
       scale -= 0.08;
-    }
-    return { dataUrl, kb: +(bytes / 1024).toFixed(1), bytes, compliant: bytes <= targetBytes };
-  }
-
-  // 1. Evaluate baseline lowest quality
-  const lowestUrl = canvas.toDataURL(format, 0.06);
-  const lowestBytes = Math.round((lowestUrl.length * 3) / 4);
-
-  let activeCanvas = canvas;
-
-  // 2. If canvas cannot fit into targetKB at lowest quality (e.g. 10KB or 20KB target),
-  // adaptively scale canvas resolution down so it fits while preserving maximum sharpness
-  if (lowestBytes > targetBytes) {
-    let scale = Math.sqrt(targetBytes / lowestBytes) * 0.96;
-    scale = Math.min(0.95, Math.max(0.25, scale));
-
-    while (scale >= 0.18) {
       const sCanvas = document.createElement('canvas');
-      sCanvas.width = Math.max(120, Math.round(canvas.width * scale));
-      sCanvas.height = Math.max(150, Math.round(canvas.height * scale));
-      const sCtx = sCanvas.getContext('2d');
-      sCtx.imageSmoothingEnabled = true;
-      sCtx.imageSmoothingQuality = 'high';
-      sCtx.drawImage(canvas, 0, 0, sCanvas.width, sCanvas.height);
-
-      const testUrl = sCanvas.toDataURL(format, 0.15);
-      const testBytes = Math.round((testUrl.length * 3) / 4);
-      activeCanvas = sCanvas;
-      if (testBytes <= targetBytes) {
-        break;
-      }
-      scale -= 0.07;
-    }
-  }
-
-  // 3. Binary search on activeCanvas for the HIGHEST possible quality under targetBytes
-  let minQ = 0.05;
-  let maxQ = 0.98;
-  let bestUrl = null;
-  let bestBytes = 0;
-
-  for (let i = 0; i < 9; i++) {
-    const midQ = (minQ + maxQ) / 2;
-    const url = activeCanvas.toDataURL(format, midQ);
-    const bytes = Math.round((url.length * 3) / 4);
-
-    if (bytes <= targetBytes) {
+      sCanvas.width = Math.max(60, Math.round(canvas.width * scale));
+      sCanvas.height = Math.max(80, Math.round(canvas.height * scale));
+      const ctx = sCanvas.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(canvas, 0, 0, sCanvas.width, sCanvas.height);
+      const url = sCanvas.toDataURL('image/png');
+      const b = getBytes(url);
       bestUrl = url;
-      bestBytes = bytes;
-      minQ = midQ; // Try higher quality
-    } else {
-      maxQ = midQ; // Too big, reduce quality
+      bestBytes = b;
     }
+    return { dataUrl: bestUrl, kb: +(bestBytes / 1024).toFixed(1), bytes: bestBytes, compliant: bestBytes <= targetBytes };
   }
 
-  // 4. Fallback guard: if still null, downscale micro step
-  if (!bestUrl) {
-    let scale = 0.85;
-    while (scale >= 0.15) {
-      const sCanvas = document.createElement('canvas');
-      sCanvas.width = Math.max(80, Math.round(activeCanvas.width * scale));
-      sCanvas.height = Math.max(100, Math.round(activeCanvas.height * scale));
-      const sCtx = sCanvas.getContext('2d');
-      sCtx.imageSmoothingEnabled = true;
-      sCtx.imageSmoothingQuality = 'high';
-      sCtx.drawImage(activeCanvas, 0, 0, sCanvas.width, sCanvas.height);
+  // JPEG / WebP Multi-Tier Scale & Binary Quality Engine
+  const candidateScales = [1.0, 0.90, 0.82, 0.74, 0.65, 0.56, 0.48, 0.40, 0.32];
+  let bestCandidate = null;
 
-      const url = sCanvas.toDataURL(format, 0.35);
-      const bytes = Math.round((url.length * 3) / 4);
+  for (const scale of candidateScales) {
+    let testCanvas;
+    if (scale === 1.0) {
+      testCanvas = canvas;
+    } else {
+      testCanvas = document.createElement('canvas');
+      testCanvas.width = Math.max(60, Math.round(canvas.width * scale));
+      testCanvas.height = Math.max(80, Math.round(canvas.height * scale));
+      const ctx = testCanvas.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(canvas, 0, 0, testCanvas.width, testCanvas.height);
+    }
+
+    // Binary search for highest quality in [0.08, 0.98] that satisfies <= targetBytes
+    let lowQ = 0.08;
+    let highQ = 0.98;
+    let scaleBestUrl = null;
+    let scaleBestBytes = 0;
+    let scaleBestQuality = 0;
+
+    for (let iter = 0; iter < 8; iter++) {
+      const midQ = (lowQ + highQ) / 2;
+      const url = testCanvas.toDataURL(format, midQ);
+      const bytes = getBytes(url);
+
       if (bytes <= targetBytes) {
-        bestUrl = url;
-        bestBytes = bytes;
+        scaleBestUrl = url;
+        scaleBestBytes = bytes;
+        scaleBestQuality = midQ;
+        lowQ = midQ; // Try higher quality
+      } else {
+        highQ = midQ; // Too big
+      }
+    }
+
+    if (scaleBestUrl) {
+      if (!bestCandidate) {
+        bestCandidate = { url: scaleBestUrl, bytes: scaleBestBytes, quality: scaleBestQuality, scale };
+      } else {
+        if (scaleBestQuality > bestCandidate.quality + 0.15) {
+          bestCandidate = { url: scaleBestUrl, bytes: scaleBestBytes, quality: scaleBestQuality, scale };
+        }
+      }
+
+      // Early stop if scale >= 0.80 with quality >= 0.70
+      if (scale >= 0.80 && scaleBestQuality >= 0.70) {
         break;
       }
-      scale -= 0.1;
     }
   }
 
-  if (!bestUrl) {
-    bestUrl = activeCanvas.toDataURL(format, 0.05);
-    bestBytes = Math.round((bestUrl.length * 3) / 4);
+  // Fallback if even 0.32 scale didn't fit (ultra-small target KB)
+  if (!bestCandidate) {
+    let scale = 0.26;
+    while (scale >= 0.08) {
+      const sCanvas = document.createElement('canvas');
+      sCanvas.width = Math.max(40, Math.round(canvas.width * scale));
+      sCanvas.height = Math.max(50, Math.round(canvas.height * scale));
+      const ctx = sCanvas.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(canvas, 0, 0, sCanvas.width, sCanvas.height);
+
+      const url = sCanvas.toDataURL(format, 0.20);
+      const bytes = getBytes(url);
+      bestCandidate = { url, bytes, quality: 0.20, scale };
+      if (bytes <= targetBytes) break;
+      scale -= 0.04;
+    }
   }
+
+  const finalUrl = bestCandidate.url;
+  const finalBytes = bestCandidate.bytes;
+  const finalKB = +(finalBytes / 1024).toFixed(1);
 
   return {
-    dataUrl: bestUrl,
-    kb: +(bestBytes / 1024).toFixed(1),
-    bytes: bestBytes,
-    compliant: bestBytes <= targetBytes
+    dataUrl: finalUrl,
+    kb: finalKB,
+    bytes: finalBytes,
+    compliant: finalBytes <= targetBytes
   };
 };

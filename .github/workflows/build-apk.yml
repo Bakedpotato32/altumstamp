@@ -28,12 +28,12 @@ jobs:
       - name: Install Dependencies
         run: |
           npm install
-          npm install @capacitor/android
+          npm install @capacitor/android @capacitor-community/media
 
       - name: Build Web Production Assets
         run: npm run build
 
-      - name: Add Android Platform
+      - name: Sync Android Native Platform
         run: |
           if [ ! -d "android" ]; then
             npx cap add android
@@ -44,13 +44,11 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y librsvg2-bin
           
-          # Remove default adaptive XMLs so Android displays the custom vector icon
           rm -rf android/app/src/main/res/mipmap-anydpi-v26
           
           MIPMAP="android/app/src/main/res"
           mkdir -p $MIPMAP/mipmap-mdpi $MIPMAP/mipmap-hdpi $MIPMAP/mipmap-xhdpi $MIPMAP/mipmap-xxhdpi $MIPMAP/mipmap-xxxhdpi
           
-          # Convert logo.svg across standard launcher densities
           rsvg-convert -w 48 -h 48 public/logo.svg -o $MIPMAP/mipmap-mdpi/ic_launcher.png
           rsvg-convert -w 48 -h 48 public/logo.svg -o $MIPMAP/mipmap-mdpi/ic_launcher_round.png
           

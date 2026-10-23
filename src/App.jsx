@@ -17,7 +17,8 @@ import {
   PenTool,
   Award,
   Printer,
-  Archive
+  Archive,
+  Check
 } from 'lucide-react';
 import { App as CapApp } from '@capacitor/app';
 import { StatusBar, Style } from '@capacitor/status-bar';
@@ -58,6 +59,8 @@ export default function App() {
   const [cropperModal, setCropperModal] = useState({ isOpen: false, mode: 'photo', image: null });
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
+  // Toast states
+  const [saveToast, setSaveToast] = useState(null);
   const [exitToast, setExitToast] = useState(false);
   const lastBackPressRef = useRef(0);
 
@@ -256,7 +259,7 @@ export default function App() {
     setActiveTab('studio');
   };
 
-  // Download & Auto-Save with Native Exporter
+  // Direct Save to Gallery with Confirmation Toast (ZERO Share Popups)
   const handleDownload = async () => {
     if (!compositeUrl) return;
     triggerHaptic('success');
@@ -265,11 +268,17 @@ export default function App() {
     const ext = format === 'image/png' ? 'png' : format === 'image/webp' ? 'webp' : 'jpg';
     const filename = `Candidate_UPBoard_${activeKB}KB.${ext}`;
 
-    await exportFile({
+    const res = await exportFile({
       dataUrl: compositeUrl,
       fileName: filename,
       mimeType: format
     });
+
+    if (res.success) {
+      const msg = res.destination === 'gallery' ? 'Saved directly to Gallery!' : 'Saved to Documents/AltumStamp!';
+      setSaveToast(msg);
+      setTimeout(() => setSaveToast(null), 2500);
+    }
 
     await saveToVault({
       name: 'Candidate Slip',
@@ -300,6 +309,7 @@ export default function App() {
     <div className="relative min-h-screen text-slate-900 flex flex-col pb-28">
       <AmbientBackground />
 
+      {/* Pinned Sticky Header */}
       <header
         className="sticky top-0 z-40 w-full bg-[#f8fafc]/85 backdrop-blur-2xl border-b border-slate-200/60 shadow-[0_4px_20px_rgba(15,23,42,0.03)]"
         style={{
@@ -314,6 +324,7 @@ export default function App() {
         </div>
       </header>
 
+      {/* Main Content */}
       <main className="flex-1 w-full max-w-md mx-auto px-4 pt-3 space-y-4">
         <input 
           type="file" 
@@ -334,6 +345,8 @@ export default function App() {
 
         {activeTab === 'studio' && (
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+            
+            {/* Hero Card */}
             <motion.div
               whileTap={{ scale: 0.98 }}
               className="rounded-[28px] p-6 bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 text-white shadow-xl shadow-indigo-600/25 relative overflow-hidden"
@@ -388,7 +401,10 @@ export default function App() {
               </div>
             </motion.div>
 
+            {/* Dual Stations */}
             <div className="grid grid-cols-2 gap-3.5">
+              
+              {/* CARD 1: Student Photo Card */}
               <div className="rounded-[28px] p-4 bg-gradient-to-b from-sky-400 via-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25 flex flex-col justify-between min-h-[195px] relative overflow-hidden">
                 <div className="flex items-start justify-between z-10">
                   <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-white/20 text-white">
@@ -459,6 +475,7 @@ export default function App() {
                 </div>
               </div>
 
+              {/* CARD 2: Student Signature Card */}
               <div className="rounded-[28px] p-4 bg-gradient-to-b from-rose-500 via-red-500 to-orange-500 text-white shadow-lg shadow-rose-500/25 flex flex-col justify-between min-h-[195px] relative overflow-hidden">
                 <div className="flex items-start justify-between z-10">
                   <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-white/20 text-white">
@@ -550,6 +567,7 @@ export default function App() {
               </div>
             </div>
 
+            {/* Bleach Controls */}
             <AnimatePresence>
               {showBleachDial && activeSign && (
                 <motion.div
@@ -614,6 +632,7 @@ export default function App() {
               )}
             </AnimatePresence>
 
+            {/* Continuous Precision Compression Slider */}
             <div className="rounded-[28px] p-5 bg-white/80 backdrop-blur-xl border border-white/90 shadow-lg space-y-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -621,7 +640,7 @@ export default function App() {
                     Target File Size Limit
                   </h3>
                   <p className="text-[11px] text-slate-500 font-semibold mt-0.5">
-                    High-clarity dial • {activePresetName}
+                    Strict precision compressor • {activePresetName}
                   </p>
                 </div>
                 <div className="px-3 py-1 rounded-2xl bg-blue-50 border border-blue-200 text-blue-700 font-black text-sm">
@@ -632,13 +651,13 @@ export default function App() {
               <div className="pt-1">
                 <input
                   type="range"
-                  min="8"
+                  min="5"
                   max="100"
                   step="1"
                   value={targetKB}
                   onChange={(e) => {
                     const val = Number(e.target.value);
-                    if (val === 20 || val === 50) triggerHaptic('selection');
+                    if (val === 10 || val === 20 || val === 50) triggerHaptic('selection');
                     else triggerHaptic('light');
                     setTargetKB(val);
                   }}
@@ -646,14 +665,15 @@ export default function App() {
                 />
                 <div className="flex justify-between text-[10px] font-extrabold text-slate-400 mt-1.5 px-0.5">
                   <span onClick={() => setTargetKB(10)} className={`cursor-pointer ${targetKB === 10 ? 'text-blue-600 font-black' : ''}`}>10 KB</span>
-                  <span onClick={() => setTargetKB(20)} className={`cursor-pointer ${targetKB === 20 ? 'text-blue-600 font-black' : ''}`}>20 KB</span>
+                  <span onClick={() => setTargetKB(20)} className={`cursor-pointer ${targetKB === 20 ? 'text-blue-600 font-black' : ''}`}>20 KB (SSC)</span>
                   <span onClick={() => setTargetKB(35)} className={`cursor-pointer ${targetKB === 35 ? 'text-blue-600 font-black' : ''}`}>35 KB</span>
-                  <span onClick={() => setTargetKB(50)} className={`cursor-pointer ${targetKB === 50 ? 'text-blue-600 font-black' : ''}`}>50 KB</span>
+                  <span onClick={() => setTargetKB(50)} className={`cursor-pointer ${targetKB === 50 ? 'text-blue-600 font-black' : ''}`}>50 KB (UPMSP)</span>
                   <span onClick={() => setTargetKB(100)} className="cursor-pointer hover:text-blue-600">100 KB</span>
                 </div>
               </div>
             </div>
 
+            {/* Output Canvas Preview */}
             <div className="rounded-[28px] p-5 bg-white/80 backdrop-blur-xl border border-white/90 shadow-xl shadow-slate-200/50">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -756,6 +776,24 @@ export default function App() {
         )}
       </main>
 
+      {/* Floating Save Confirmation Toast */}
+      <AnimatePresence>
+        {saveToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className="fixed top-24 inset-x-0 z-[9999] flex justify-center pointer-events-none px-4"
+          >
+            <div className="px-5 py-2.5 rounded-full bg-emerald-600 text-white text-xs font-black shadow-2xl backdrop-blur-md flex items-center gap-2 border border-emerald-400/50">
+              <Check className="w-4 h-4 stroke-[3]" />
+              <span>{saveToast}</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Exit App Confirmation Toast */}
       <AnimatePresence>
         {exitToast && (
           <motion.div
